@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light">
 <meta name="theme-color" content="#047857">
 <title>Setia Payment Solution - Opname Shift & Grosir System</title>
 <!-- Tailwind CSS CDN -->
@@ -20,6 +21,7 @@ html, body {
   padding: 0;
   overflow: hidden;
   background-color: #0f172a;
+  -webkit-text-size-adjust: 100%;
 }
 ::-webkit-scrollbar {
   width: 3px;
@@ -59,6 +61,11 @@ body {
 @keyframes marquee {
   0% { transform: translate(0, 0); }
   100% { transform: translate(-100%, 0); }
+}
+/* Tambahan penyeimbang tampilan editor kode */
+#app {
+  box-sizing: border-box;
+  font-size: 14px;
 }
 </style>
 </head>
@@ -154,7 +161,6 @@ body {
     </div>
   </div>
   <div class="flex items-center gap-1 shrink-0">
-    <!-- TOMBOL WA HARGA YANG SUDAH DIBERI ID btn-wa-harga -->
     <button id="btn-wa-harga" onclick="openWhatsAppPriceListModal()" class="p-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all active:scale-95 flex items-center gap-1 text-[10px] font-bold px-2 shadow" title="Kirim Update Harga Grosir WA">
       <i data-lucide="send" class="w-3.5 h-3.5"></i> WA Harga
     </button>
@@ -243,7 +249,7 @@ body {
     <div class="flex items-center gap-1 overflow-x-auto text-[10px] no-scrollbar pb-0.5" id="category-pills"></div>
   </div>
 
-  <div class="flex-1 overflow-y-auto p-3 pb-48" id="opname-product-list"></div>
+  <div class="flex-1 overflow-y-auto p-2 pb-48" id="opname-product-list"></div>
 </main>
 
 <!-- SCREEN 3: RIWAYAT TRANSAKSI -->
@@ -1070,7 +1076,6 @@ function handleSyncedData(data, saveCache = true) {
   
   if (data.ownerMenuOrder) {
     ownerMenuOrder = data.ownerMenuOrder;
-    // Tambahkan otomatis menu kelola admin manual jika belum ada
     if (!ownerMenuOrder.find(m => m.id === 'admin_manual')) {
       ownerMenuOrder.push({ id: 'admin_manual', title: 'Kelola Admin Manual', desc: 'Lihat / hapus data admin manual', onclick: 'openKelolaAdminModal()', bg: 'indigo' });
     }
@@ -1511,9 +1516,6 @@ window.saveHakAksesLaporan = function() {
   alert('Pengaturan Kontrol Akses berhasil disimpan!');
 };
 
-// ==========================================
-// FITUR ADMIN MANUAL DI LUAR HALAMAN
-// ==========================================
 window.openInputAdminModalOutside = function() {
   const staffSelect = document.getElementById('admin-trx-staff');
   const staffList = users.filter(u => !u.isOwner);
@@ -1562,9 +1564,6 @@ window.saveAdminManual = function() {
   if (currentUser) refreshUIComponents();
 };
 
-// ==========================================
-// KELOLA ADMIN MANUAL KHUSUS OWNER
-// ==========================================
 window.openKelolaAdminModal = function() {
   document.getElementById('modal-kelola-admin').classList.remove('hidden');
   renderAdminList();
@@ -1606,7 +1605,6 @@ window.deleteAdminManual = function(id) {
     renderAdminList();
   }
 };
-
 
 window.openKelolaKasbonModal = function() {
   document.getElementById('modal-kelola-kasbon').classList.remove('hidden');
@@ -2239,7 +2237,7 @@ window.debouncedRenderOpname = function() {
 };
 
 // ===============================================
-// UKURAN KARTU RAMPING TAPI FONT BESAR SESUAI PERMINTAAN
+// PERBAIKAN UTAMA: DILENGKAPI PERSISTENSI PERUBAHAN
 // ===============================================
 window.renderOpnameProductList = function() {
   const searchEl = document.getElementById('search-product');
@@ -2248,6 +2246,7 @@ window.renderOpnameProductList = function() {
   if (!container || !currentUser) return;
   
   const branch = currentUser.branch;
+  const isOwner = currentUser.isOwner;
 
   const filtered = products.filter(p => {
     const matchesCategory = selectedCategory === 'Semua' || p.category === selectedCategory;
@@ -2256,7 +2255,7 @@ window.renderOpnameProductList = function() {
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = '<p class="text-sm text-slate-400 py-10 text-center font-medium">Produk tidak ditemukan.</p>';
+    container.innerHTML = '<p class="text-xs text-slate-400 py-10 text-center font-medium">Produk tidak ditemukan.</p>';
     return;
   }
 
@@ -2268,24 +2267,37 @@ window.renderOpnameProductList = function() {
   container.innerHTML = filtered.map((p) => {
     const savedVal = savedDrafts[p.id] !== undefined ? savedDrafts[p.id] : '';
     const curStock = p.stocks[branch] || 0;
+    
+    const pencilHtml = isOwner ? `<button onclick="editProduct(${p.id})" class="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-emerald-600 transition-all shadow-xs active:scale-95" title="Edit Produk"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>` : '';
+
+    const restockInfo = (p.lastRestock && p.lastRestock[branch]) ? `
+      <div class="mt-1 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-black text-blue-800 shadow-xs w-fit">
+        <i data-lucide="info" class="w-3 h-3 text-blue-600"></i>
+        Riwayat Tambah: Sisa ${p.lastRestock[branch].old} + ${p.lastRestock[branch].added} = ${p.lastRestock[branch].total} pcs
+      </div>
+    ` : '';
 
     return `
-      <div class="p-2.5 mb-2 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-md">
-        <div class="flex-1 pr-2">
-          <h4 class="font-black text-lg text-slate-950 mb-1.5 leading-tight tracking-wide">${p.name}</h4>
-          <div class="text-xs text-slate-700 flex flex-col gap-1.5">
+      <div class="p-3 mb-2.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-sm">
+        <div class="flex-1 pr-2 min-w-0">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <h4 class="font-black text-base text-slate-950 truncate tracking-tight">${p.name}</h4>
+            ${pencilHtml}
+          </div>
+          <div class="text-xs text-slate-700 flex flex-col gap-1">
             <div class="flex items-center gap-2">
-              <span class="font-extrabold uppercase tracking-wide">Harga:</span>
-              <span class="font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 shadow-sm text-sm">Rp ${p.price.toLocaleString('id-ID')}</span>
+              <span class="font-extrabold text-slate-500 text-[11px] uppercase tracking-wide">HARGA:</span>
+              <span class="font-black text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded text-sm border border-emerald-300">Rp ${p.price.toLocaleString('id-ID')}</span>
             </div>
             <div class="flex items-center gap-2">
-              <span class="font-extrabold uppercase tracking-wide">Sistem:</span>
-              <span class="bg-slate-900 text-amber-300 font-black px-2.5 py-0.5 rounded shadow-md text-sm tracking-wide">${curStock} Pcs</span>
+              <span class="font-extrabold text-slate-500 text-[11px] uppercase tracking-wide">SISTEM:</span>
+              <span class="bg-slate-900 text-amber-300 font-black px-2.5 py-0.5 rounded text-xs">${curStock} Pcs</span>
             </div>
+            ${restockInfo}
           </div>
         </div>
-        <div class="flex flex-col items-center gap-1 shrink-0 ml-2">
-          <span class="text-[10px] font-black text-slate-800 uppercase tracking-widest">SISA FISIK</span>
+        <div class="flex flex-col items-center gap-1 shrink-0 pl-1">
+          <span class="text-[10px] font-black text-slate-600 uppercase tracking-wider">SISA FISIK</span>
           <input type="number" 
                  id="input-sisa-${p.id}" 
                  data-prod-id="${p.id}" 
@@ -2295,9 +2307,9 @@ window.renderOpnameProductList = function() {
                  min="0" 
                  onfocus="this.select(); this.scrollIntoView({behavior: 'smooth', block: 'nearest'});" 
                  oninput="validateAndCalculateRealtime(this, ${curStock})" 
-                 class="opname-stock-input w-20 h-11 py-1 px-2 text-center bg-white border-2 border-emerald-600 rounded-xl font-black text-emerald-800 text-xl outline-none shadow-md transition-all focus:border-emerald-700 focus:ring-4 focus:ring-emerald-200">
-          <span id="error-msg-${p.id}" class="text-[11px] font-black text-rose-600 hidden mt-1 bg-rose-100 px-2 py-0.5 rounded">Maks ${curStock}!</span>
-          <span id="dynamic-sold-${p.id}" class="text-[11px] font-black text-emerald-800 hidden mt-1 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300"></span>
+                 class="opname-stock-input w-16 h-11 py-1 px-1 text-center bg-white border-2 border-emerald-600 rounded-xl font-black text-emerald-800 text-lg outline-none shadow-xs transition-all focus:border-emerald-700">
+          <span id="error-msg-${p.id}" class="text-[9px] font-black text-rose-600 hidden bg-rose-100 px-1 rounded">Maks ${curStock}!</span>
+          <span id="dynamic-sold-${p.id}" class="text-[9px] font-black text-emerald-800 hidden bg-emerald-100 px-1 rounded"></span>
         </div>
       </div>
     `;
@@ -2311,7 +2323,6 @@ window.renderOpnameProductList = function() {
   });
   calculateRealtimeRecap();
 };
-
 
 window.renderGrosirProductList = function() {
   const searchEl = document.getElementById('search-product');
@@ -2338,17 +2349,17 @@ window.renderGrosirProductList = function() {
     const wholesaleInfo = wPrice > 0 ? `Grosir: <b>Rp ${wPrice.toLocaleString('id-ID')}</b> (Min ${wQty}pcs)` : `Harga Grosir: <i>Tidak diatur</i>`;
 
     return `
-      <div class="p-2 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-sm hover:border-amber-400 transition-all">
+      <div class="p-2.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-sm hover:border-amber-400 transition-all mb-2">
         <div class="flex-1 pr-2">
-          <h4 class="font-black text-[13px] text-slate-900 tracking-tight leading-snug">${p.name}</h4>
-          <div class="text-[10px] text-slate-600 flex flex-col gap-0.5 mt-1">
-            <span>Ecer: <b>Rp ${p.price.toLocaleString('id-ID')}</b></span>
+          <h4 class="font-black text-base text-slate-950 tracking-tight leading-snug">${p.name}</h4>
+          <div class="text-xs text-slate-700 flex flex-col gap-0.5 mt-1">
+            <span>Ecer: <b class="text-emerald-800 text-sm">Rp ${p.price.toLocaleString('id-ID')}</b></span>
             <span class="text-amber-700 font-extrabold">${wholesaleInfo}</span>
           </div>
           <span class="text-[10px] text-slate-400 font-semibold mt-0.5 block">Stok Cabang: ${curStock} Pcs</span>
         </div>
-        <button onclick="addToGrosirCart(${p.id})" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shadow transition-all active:scale-95 flex items-center gap-1">
-          <i data-lucide="plus" class="w-3.5 h-3.5"></i> Pilih
+        <button onclick="addToGrosirCart(${p.id})" class="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shadow transition-all active:scale-95 flex items-center gap-1">
+          <i data-lucide="plus" class="w-4 h-4"></i> Pilih
         </button>
       </div>
     `;
@@ -2669,6 +2680,22 @@ function calculateRealtimeRecap() {
           savedDrafts[p.id] = val;
         }
       }
+    } else {
+      // PERBAIKAN: Jika elemen input tidak ada di DOM saat ini (karena sedang di kategori lain), 
+      // ambil nilai yang sudah tersimpan sebelumnya di sessionStorage agar tidak terhapus.
+      try {
+        const oldDrafts = JSON.parse(sessionStorage.getItem('setia_pos_opname_draft') || '{}');
+        if (oldDrafts[p.id] !== undefined) {
+          let val = oldDrafts[p.id];
+          savedDrafts[p.id] = val;
+          let terjual = curStock - val;
+          if (terjual > 0) {
+            totalSoldPcs += terjual;
+            totalUang += (terjual * p.price);
+            changedCount++;
+          }
+        }
+      } catch(e) {}
     }
   });
 
@@ -2691,39 +2718,48 @@ window.processShiftOpname = function() {
   let itemsSold = [], totalOmset = 0, totalQtySold = 0, totalProfit = 0, totalCost = 0;
   const branch = currentUser.branch;
 
+  let savedDrafts = {};
+  try {
+    savedDrafts = JSON.parse(sessionStorage.getItem('setia_pos_opname_draft') || '{}');
+  } catch(e) {}
+
   for (let p of products) {
     const curStock = p.stocks[branch] || 0;
     const inputEl = document.getElementById(`input-sisa-${p.id}`);
+    
+    let sisaFisik = curStock;
     if (inputEl) {
       let valStr = inputEl.value.trim();
-      let sisaFisik = valStr === '' ? curStock : parseInt(valStr);
-      if (isNaN(sisaFisik) || sisaFisik < 0) { alert(`Sisa stok untuk ${p.name} tidak valid!`); return; }
-      if (sisaFisik > curStock) {
-        alert(`Sisa stok "${p.name}" (${sisaFisik}) melebihi stok awal sistem (${curStock})!`);
-        inputEl.focus();
-        return;
-      }
-      let terjual = curStock - sisaFisik;
-      if (terjual > 0) {
-        let subtotal = terjual * p.price;
-        let pCost = p.cost || 0;
-        let pProfit = terjual * ((p.price || 0) - pCost);
-        itemsSold.push({
-          productId: p.id,
-          name: p.name,
-          price: p.price,
-          costAtSale: pCost,
-          profitTotal: pProfit,
-          oldStock: curStock,
-          newStock: sisaFisik,
-          qtySold: terjual,
-          subtotal: subtotal
-        });
-        totalOmset += subtotal;
-        totalQtySold += terjual;
-        totalProfit += pProfit;
-        totalCost += (terjual * pCost);
-      }
+      if (valStr !== '') sisaFisik = parseInt(valStr);
+    } else if (savedDrafts[p.id] !== undefined) {
+      sisaFisik = savedDrafts[p.id];
+    }
+
+    if (isNaN(sisaFisik) || sisaFisik < 0) { alert(`Sisa stok untuk ${p.name} tidak valid!`); return; }
+    if (sisaFisik > curStock) {
+      alert(`Sisa stok "${p.name}" (${sisaFisik}) melebihi stok awal sistem (${curStock})!`);
+      return;
+    }
+    let terjual = curStock - sisaFisik;
+    if (terjual > 0) {
+      let subtotal = terjual * p.price;
+      let pCost = p.cost || 0;
+      let pProfit = terjual * ((p.price || 0) - pCost);
+      itemsSold.push({
+        productId: p.id,
+        name: p.name,
+        price: p.price,
+        costAtSale: pCost,
+        profitTotal: pProfit,
+        oldStock: curStock,
+        newStock: sisaFisik,
+        qtySold: terjual,
+        subtotal: subtotal
+      });
+      totalOmset += subtotal;
+      totalQtySold += terjual;
+      totalProfit += pProfit;
+      totalCost += (terjual * pCost);
     }
   }
 
@@ -3315,7 +3351,17 @@ window.processMutasi = function() {
   
   if (dest !== 'Koreksi / Buang (Hilang)') {
     if (p.stocks[dest] === undefined) p.stocks[dest] = 0;
+    let oldDestStock = p.stocks[dest];
     p.stocks[dest] += qty;
+    
+    p.lastRestock = p.lastRestock || {};
+    p.lastRestock[dest] = {
+      old: oldDestStock,
+      added: qty,
+      total: p.stocks[dest],
+      date: new Date().toLocaleDateString('id-ID', {day:'numeric', month:'short'}) + ' ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+    };
+
     notifications.push({
       id: 'NTF-' + Date.now(),
       date: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' - ' + new Date().toLocaleDateString('id-ID'),
@@ -3479,6 +3525,20 @@ window.saveProductForm = function() {
   if (idStr) {
     const prod = products.find(p => p.id === parseInt(idStr));
     if (prod) {
+      prod.lastRestock = prod.lastRestock || {};
+      branches.forEach(b => {
+         let oldStk = prod.stocks[b] || 0;
+         let newStk = newStocks[b] || 0;
+         if (newStk > oldStk) {
+           prod.lastRestock[b] = {
+             old: oldStk,
+             added: newStk - oldStk,
+             total: newStk,
+             date: new Date().toLocaleDateString('id-ID', {day:'numeric', month:'short'}) + ' ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+           };
+         }
+      });
+
       prod.name = name; prod.cost = cost; prod.price = price; 
       prod.wholesalePrice = wholesalePrice; prod.wholesaleQty = wholesaleQty;
       prod.minStock = minStock; prod.expiryDate = expiryDate; prod.category = category;
